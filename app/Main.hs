@@ -6,5 +6,8 @@ import Lib
 
 main :: IO ()
 main = do
-  let passwordHash = sha1 "zaim9"
+  putStrLn "Enter the clear password to hack"
+  password <- getLine
+  let passwordHash = sha1 password
+  putStrLn $ "Start computing hashes to find " ++ (show passwordHash)
   putStrLn $ findPassword passwordHash
