@@ -6,7 +6,8 @@ module Lib
 import qualified Data.ByteString.Char8 as B
 import Data.Maybe (isJust)
 import Crypto.Hash
-import Control.Parallel.Strategies
+import qualified Control.Parallel.Strategies as S
+import Control.Parallel.Strategies (NFData, ($||))
 
 sha1 :: String -> Digest SHA1
 sha1 = hash . B.pack
@@ -14,15 +15,12 @@ sha1 = hash . B.pack
 allStrings :: [String]
 allStrings = [ c : s | s <- "" : allStrings, c <- ['a'..'z'] ++ ['0'..'9'] ]
 
-checkPassword :: Digest SHA1 -> String -> Maybe String
-checkPassword hash string
-  | (sha1 string) == hash = Just string
-  | otherwise = Nothing
+parFilter :: (NFData a) => (a -> Bool) -> [a] -> [a]
+parFilter p = S.withStrategy (S.parBuffer 100 S.rseq) . filter p
 
-getPassword :: Maybe String -> Maybe String -> Maybe String
-getPassword Nothing maybePassword = maybePassword
-getPassword maybePassword Nothing = maybePassword
+checkPassword :: Digest SHA1 -> String -> Bool
+checkPassword hash string = (sha1 string) == hash
 
--- runEval $ parBuffer 10000 rseq $
 findPassword :: Digest SHA1 -> String
-findPassword passwordHash = show $ head $ filter isJust $ map (checkPassword passwordHash) allStrings
+findPassword passwordHash = (head . filter checkThePassword) allStrings
+  where checkThePassword = checkPassword passwordHash
