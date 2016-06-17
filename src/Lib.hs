@@ -14,11 +14,17 @@ sha1 = hash . B.pack
 allStrings :: [String]
 allStrings = [ c : s | s <- "" : allStrings, c <- ['a'..'z'] ++ ['0'..'9'] ]
 
-parFilter :: (S.NFData a) => (a -> Bool) -> [a] -> [a]
-parFilter p = S.withStrategy (S.evalBuffer 1000 S.rseq) . filter p
+parAllHashes :: [(String, Digest SHA1)]
+parAllHashes = S.runEval $ S.parBuffer 16 S.rseq $ map (\x -> (x, sha1 x)) allStrings
+
+allHashes :: [(String, Digest SHA1)]
+allHashes = map (\x -> (x, sha1 x)) allStrings
 
 checkPassword :: Digest SHA1 -> String -> Bool
 checkPassword hash string = (sha1 string) == hash
 
 findPassword :: Digest SHA1 -> String
-findPassword passwordHash = (head . filter (checkPassword passwordHash)) allStrings
+findPassword passwordHash = (fst . head) (filter (testTuple passwordHash) parAllHashes)
+
+testTuple :: Digest SHA1 -> (String, Digest SHA1) -> Bool
+testTuple a (_, b) = a == b
